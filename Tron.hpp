@@ -23,12 +23,12 @@ public:
 
     static constexpr auto port = 15150;
     static constexpr auto max_connections = 10;
-    static constexpr auto fps = 10U;
+    static constexpr auto fps = 60U;
     static constexpr auto player_size = 3U;
     static constexpr auto player_speed = 4U; // ticks per frame
 
     static constexpr auto background_filename = "../images/background.jpg";
-    static constexpr auto font_filename = "../fonts/FFF_Tusj.ttf";
+    static constexpr auto font_filename = "../fonts/Amatic-Bold.ttf";
 
     static constexpr auto title = "The Tron Game!";
     static constexpr auto start_text = "Use W, A, S and D to move your Tron Bike\nIf you're ready, tap Enter";
@@ -45,9 +45,10 @@ public:
             up,
             down
         };
+
         Player() : Player(sf::Color::White, 0, 0, directions::down) {}
 
-        Player(sf::Color color_, int x_, int y_, directions dir_) :
+        explicit Player(sf::Color color_, int x_, int y_, directions dir_) :
     		x(x_), y(y_), color(color_), dir(dir_) {}
 
         void tick()
@@ -85,12 +86,6 @@ public:
             }
         }
 
-        sf::Vector3f get_rgb() const
-        {
-            return sf::Vector3f(color.r, color.g, color.b);
-        }
-        
-
         int x;
         int y;
         sf::Color color;
@@ -124,7 +119,7 @@ private:
     socket_ptr_t socket_ptr;
 
 public:
-    Session() : field(false), exit_flag(false), local_is_winner(false),
+    explicit Session() : field(false), exit_flag(false), local_is_winner(false),
 				window(sf::VideoMode(width, height), title)
     {}
 
@@ -154,6 +149,7 @@ private:
 
 			frame();
         }
+
         finish();
     }
 
@@ -182,37 +178,29 @@ private:
 
     void track_local_keyboard()
     {
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A) && 
+				local_player.dir != Player::directions::right)
         {
-	        if (local_player.dir != Player::directions::right)
-	        {
-	        	local_player.dir = Player::directions::left;
-	        	send_command(commands::left);
-	        }
+	        local_player.dir = Player::directions::left;
+	        send_command(commands::left);
         }
-    	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
+    	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D) && 
+				local_player.dir != Player::directions::left)
     	{
-    		if (local_player.dir != Player::directions::left)
-    		{
-    			local_player.dir = Player::directions::right;
-    			send_command(commands::right);
-    		}
+    		local_player.dir = Player::directions::right;
+    		send_command(commands::right);
     	}
-        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::W) && 
+				local_player.dir != Player::directions::down)
         {
-	        if (local_player.dir != Player::directions::down)
-	        {
-	        	local_player.dir = Player::directions::up;
-	        	send_command(commands::up);
-	        }
+	        local_player.dir = Player::directions::up;
+	        send_command(commands::up);
         }
-    	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+    	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S) && 
+				local_player.dir != Player::directions::up)
     	{
-    		if (local_player.dir != Player::directions::up)
-    		{
-    			local_player.dir = Player::directions::down;
-    			send_command(commands::down);
-    		}
+    		local_player.dir = Player::directions::down;
+    		send_command(commands::down);
     	}
     	else
     	{
@@ -254,27 +242,28 @@ private:
 
     void update()
     {
-        // collision
-        if (field[local_player.x + height * (local_player.y % height)])
+        if (field[local_player.x + width * (local_player.y % height)])
         {
             exit_flag = true;
+            send_command(commands::exit);
         }
-        else if (field[remote_player.x + height * (remote_player.y % height)])
+        else if (field[remote_player.x + width * (remote_player.y % height)])
         {
             local_is_winner = true;
             exit_flag = true;
+            send_command(commands::exit);
         }
 
         // update field
-        field[local_player.x + height * (local_player.y % height)] = true;
-        field[remote_player.x + height * (remote_player.y % height)] = true;
+        field[local_player.x + width * (local_player.y % height)] = true;
+        field[remote_player.x + width * (remote_player.y % height)] = true;
     }
 
     void init_render()
     {
         center_text.setFont(main_font);
         center_text.setFillColor(sf::Color::White);
-        center_text.setCharacterSize(16);
+        center_text.setCharacterSize(24);
         center_text.setString(start_text);
         center_text.setPosition(width * 0.1, height / 2.0);
 
@@ -318,17 +307,6 @@ private:
         window.clear();
         window.draw(main_sprite);
         window.display();
-    }
-
-    void wait_for_start()
-    {
-        window.clear();
-        window.draw(main_sprite);
-        center_text.setString(ready_text);
-        window.draw(center_text);
-        window.display();
-
-        while (receive_command() != commands::skip);
     }
 
     void init_settings()
@@ -411,9 +389,22 @@ private:
         window.draw(center_text);
         window.display();
 
-        while (!sf::Keyboard::isKeyPressed(sf::Keyboard::Enter));
+        std::cout << "Wait for Enter\n";
+
+        while (window.waitEvent(event) && !sf::Keyboard::isKeyPressed(sf::Keyboard::Enter));
 
         send_command(commands::skip);
+    }
+
+    void wait_for_start()
+    {
+        window.clear();
+        window.draw(main_sprite);
+        center_text.setString(ready_text);
+        window.draw(center_text);
+        window.display();
+
+        while (window.waitEvent(event) && receive_command() != commands::skip);
     }
 
     void finish()
@@ -424,16 +415,13 @@ private:
             center_text.setString(remote_win_text);
         
         window.draw(center_text);
-
         window.display();
 
-        while (window.pollEvent(event))
-        {
-            if (event.type == sf::Event::KeyPressed)
-            {
-                window.close();
-            }
-        }
+        while (window.waitEvent(event) && event.type != sf::Event::KeyPressed);
+
+        window.close();
+
+        socket_ptr->close();
     }
 
 public:
