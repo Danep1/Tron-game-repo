@@ -9,7 +9,10 @@ int main(int argc, char* argv[])
 
 	std::cout << "Server is launching..." << std::endl;
 
-    Session().launch_server();
+	constexpr auto width = 600;
+	constexpr auto height = 480;
+
+    Session<width , height>().launch_server();
 
 	return EXIT_SUCCESS;
 }

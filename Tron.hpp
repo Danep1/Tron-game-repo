@@ -1,43 +1,49 @@
-#include <SFML/Graphics.hpp>
+#pragma once
+
 #include <random>
 #include <bitset>
 #include <iostream>
 #include <string>
+
 #include <boost/asio.hpp>
 #include <boost/asio/basic_stream_socket.hpp>
 #include <json.hpp>
-#include <Windows.h>
+#include <SFML/Graphics.hpp>
+
 
 using nlohmann::json;
 
+template < std::size_t Width, std::size_t Height >
 class Session
 {
 public:
-    static constexpr auto width = 600ULL;
-    static constexpr auto height = 480ULL;
 
     using socket_t = boost::asio::ip::tcp::socket;
-    using field_t = std::bitset< width * height >;
+    using field_t = std::bitset< Width * Height >;
 
     using socket_ptr_t = std::unique_ptr<socket_t>;
 
-    static constexpr auto port = 15150;
-    static constexpr auto max_connections = 10;
-    static constexpr auto fps = 60U;
-    static constexpr auto player_size = 3U;
-    static constexpr auto player_speed = 4U; // ticks per frame
+    const int port_ = 15150;
+    const int max_connections_ = 10;
 
-    static constexpr auto background_filename = "../images/background.jpg";
-    static constexpr auto font_filename = "../fonts/Amatic-Bold.ttf";
+private:
 
-    static constexpr auto title = "The Tron Game!";
-    static constexpr auto start_text = "Use W, A, S and D to move your Tron Bike\nIf you're ready, tap Enter";
-    static constexpr auto ready_text = "Waiting for your opponent...";
-    static constexpr auto local_win_text = "Victory!!!";
-    static constexpr auto remote_win_text = "Lose...";
+    const std::size_t fps_ = 60U;
+    const std::size_t player_size_ = 3U;
+    const std::size_t player_speed_ = 4U; // ticks per frame
 
-    struct Player
+    const std::string background_filename_ = "../images/background.jpg";
+    const std::string font_filename_ = "../fonts/Amatic-Bold.ttf";
+
+    const std::string title_ = "The Tron Game!";
+    const std::string start_text_ = "Use W, A, S and D to move your Tron Bike\nIf you're ready, tap Enter";
+    const std::string ready_text_ = "Waiting for your opponent...";
+    const std::string local_win_text_ = "Victory!!!";
+    const std::string remote_win_text_ = "Lose...";
+
+    class Player
     {
+    public:
         enum class directions
         {
             left,
@@ -46,10 +52,15 @@ public:
             down
         };
 
+        int x;
+        int y;
+        sf::Color color;
+        directions dir;
+
         Player() : Player(sf::Color::White, 0, 0, directions::down) {}
 
-        explicit Player(sf::Color color_, int x_, int y_, directions dir_) :
-    		x(x_), y(y_), color(color_), dir(dir_) {}
+        explicit Player(sf::Color color, int x, int y, directions dir) :
+    		x(x), y(y), color(color), dir(dir) {}
 
         void tick()
         {
@@ -59,19 +70,19 @@ public:
                 --y;
                 if (y < 0)
                 {
-	                y = height - 1;
+	                y = Height - 1;
                 }
                 break;
             case directions::right:
                 ++x;
-                if (x > width)
+                if (x > Width)
                 {
 	                x = 0;
                 }
                 break;
             case directions::down:
                 ++y;
-                if (y > height)
+                if (y > Height)
                 {
 	                y = 0;
                 }
@@ -80,16 +91,11 @@ public:
                 --x;
                 if (x < 0)
                 {
-	                x = width - 1;
+	                x = Width - 1;
                 }
                 break;
             }
         }
-
-        int x;
-        int y;
-        sf::Color color;
-        directions dir;
     };
 
 private:
@@ -103,24 +109,24 @@ private:
         exit
     };
 
-    Player local_player;
-    Player remote_player;
-    field_t field;
-    bool local_is_winner;
-    bool exit_flag;
-    sf::Font main_font;
-    sf::Sprite main_sprite;
-    sf::RenderTexture render;
-    sf::Sprite background;
-    sf::RenderWindow window;
-    sf::Text center_text;
-    sf::Event event;
+    Player local_player_;
+    Player remote_player_;
+    field_t field_;
+    bool local_is_winner_;
+    bool exit_flag_;
+    sf::Font main_font_;
+    sf::Sprite main_sprite_;
+    sf::RenderTexture render_;
+    sf::Sprite background_;
+    sf::RenderWindow window_;
+    sf::Text center_text_;
+    sf::Event event_;
 
-    socket_ptr_t socket_ptr;
+    socket_ptr_t socket_;
 
 public:
-    explicit Session() : field(false), exit_flag(false), local_is_winner(false),
-				window(sf::VideoMode(width, height), title)
+    explicit Session() : field_(false), local_is_winner_(false), exit_flag_(false),
+				window_(sf::VideoMode(Width, Height), title_)
     {}
 
 private:
@@ -132,13 +138,13 @@ private:
 
         wait_for_start();
 
-        while (!exit_flag)
+        while (!exit_flag_)
         {
-            while (window.pollEvent(event))
+            while (window_.pollEvent(event_))
             {
-                if (event.type == sf::Event::Closed)
+                if (event_.type == sf::Event::Closed)
                 {
-                    exit_flag = true;
+                    exit_flag_ = true;
                     send_command(commands::exit);
                 }
             }
@@ -159,7 +165,7 @@ private:
 
         bytes.push_back(static_cast<uint8_t>(command));
 
-        write(*socket_ptr, boost::asio::buffer(bytes));
+        write(*socket_, boost::asio::buffer(bytes));
     }
 
     commands receive_command() const
@@ -167,7 +173,7 @@ private:
         boost::asio::streambuf buffer;
 		std::istream input_stream(&buffer);
 
-        read(*socket_ptr, buffer, boost::asio::transfer_exactly(1ULL));
+        read(*socket_, buffer, boost::asio::transfer_exactly(1ULL));
 
         uint8_t command;
 
@@ -179,27 +185,27 @@ private:
     void track_local_keyboard()
     {
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::A) && 
-				local_player.dir != Player::directions::right)
+				local_player_.dir != Player::directions::right)
         {
-	        local_player.dir = Player::directions::left;
+	        local_player_.dir = Player::directions::left;
 	        send_command(commands::left);
         }
     	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D) && 
-				local_player.dir != Player::directions::left)
+				local_player_.dir != Player::directions::left)
     	{
-    		local_player.dir = Player::directions::right;
+    		local_player_.dir = Player::directions::right;
     		send_command(commands::right);
     	}
         else if (sf::Keyboard::isKeyPressed(sf::Keyboard::W) && 
-				local_player.dir != Player::directions::down)
+				local_player_.dir != Player::directions::down)
         {
-	        local_player.dir = Player::directions::up;
+	        local_player_.dir = Player::directions::up;
 	        send_command(commands::up);
         }
     	else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S) && 
-				local_player.dir != Player::directions::up)
+				local_player_.dir != Player::directions::up)
     	{
-    		local_player.dir = Player::directions::down;
+    		local_player_.dir = Player::directions::down;
     		send_command(commands::down);
     	}
     	else
@@ -213,27 +219,27 @@ private:
         switch (receive_command())
         {
         case commands::left:
-            if (remote_player.dir != Player::directions::right)
-                remote_player.dir = Player::directions::left;
+            if (remote_player_.dir != Player::directions::right)
+                remote_player_.dir = Player::directions::left;
             break;
 
         case commands::right:
-            if (remote_player.dir != Player::directions::left)
-                remote_player.dir = Player::directions::right;
+            if (remote_player_.dir != Player::directions::left)
+                remote_player_.dir = Player::directions::right;
             break;
 
         case commands::up:
-            if (remote_player.dir != Player::directions::down)
-                remote_player.dir = Player::directions::up;
+            if (remote_player_.dir != Player::directions::down)
+                remote_player_.dir = Player::directions::up;
             break;
 
         case commands::down:
-            if (remote_player.dir != Player::directions::up)
-                remote_player.dir = Player::directions::down;
+            if (remote_player_.dir != Player::directions::up)
+                remote_player_.dir = Player::directions::down;
             break;
 
         case commands::exit:
-            exit_flag = true;
+            exit_flag_ = true;
 
         case commands::skip:
             break;
@@ -242,97 +248,97 @@ private:
 
     void update()
     {
-        if (field[local_player.x + width * (local_player.y % height)])
+        if (field_[local_player_.x + Width * (local_player_.y % Height)])
         {
-            exit_flag = true;
+            exit_flag_ = true;
             send_command(commands::exit);
         }
-        else if (field[remote_player.x + width * (remote_player.y % height)])
+        else if (field_[remote_player_.x + Width * (remote_player_.y % Height)])
         {
-            local_is_winner = true;
-            exit_flag = true;
+            local_is_winner_ = true;
+            exit_flag_ = true;
             send_command(commands::exit);
         }
 
         // update field
-        field[local_player.x + width * (local_player.y % height)] = true;
-        field[remote_player.x + width * (remote_player.y % height)] = true;
+        field_[local_player_.x + Width * (local_player_.y % Height)] = true;
+        field_[remote_player_.x + Width * (remote_player_.y % Height)] = true;
     }
 
     void init_render()
     {
-        center_text.setFont(main_font);
-        center_text.setFillColor(sf::Color::White);
-        center_text.setCharacterSize(24);
-        center_text.setString(start_text);
-        center_text.setPosition(width * 0.1, height / 2.0);
+        center_text_.setFont(main_font_);
+        center_text_.setFillColor(sf::Color::White);
+        center_text_.setCharacterSize(24U);
+        center_text_.setString(start_text_);
+        center_text_.setPosition(Width * 0.1, Height / 2.0);
 
-        main_font.loadFromFile(font_filename);
+        main_font_.loadFromFile(font_filename_);
         
-        window.setFramerateLimit(fps);
+        window_.setFramerateLimit(fps_);
 
         sf::Texture texture;
-        texture.loadFromFile(background_filename);
-        background = sf::Sprite(background);
+        texture.loadFromFile(background_filename_);
+        background_ = sf::Sprite(texture);
 
-        render.create(width, height);
-        render.setSmooth(true);
-        main_sprite.setTexture(render.getTexture());
-        render.clear();
-        render.draw(background);
+        render_.create(Width, Height);
+        render_.setSmooth(true);
+        main_sprite_.setTexture(render_.getTexture());
+        render_.clear();
+        render_.draw(background_);
     }
 
     void frame()
     {
-        for (auto i = 0U; i < player_speed; ++i)
+        for (auto i = 0U; i < player_speed_; ++i)
         {
-            local_player.tick();
-            remote_player.tick();
+            local_player_.tick();
+            remote_player_.tick();
 
             update();
 
-            sf::CircleShape c(player_size);
+            sf::CircleShape c(player_size_);
 
-            c.setPosition(local_player.x, local_player.y);
-            c.setFillColor(local_player.color);
-            render.draw(c);
+            c.setPosition(local_player_.x, local_player_.y);
+            c.setFillColor(local_player_.color);
+            render_.draw(c);
 
-            c.setPosition(remote_player.x, remote_player.y);
-            c.setFillColor(remote_player.color);
-            render.draw(c);
+            c.setPosition(remote_player_.x, remote_player_.y);
+            c.setFillColor(remote_player_.color);
+            render_.draw(c);
 
-            render.display();
+            render_.display();
         }
 
-        window.clear();
-        window.draw(main_sprite);
-        window.display();
+        window_.clear();
+        window_.draw(main_sprite_);
+        window_.display();
     }
 
     void init_settings()
     {
-        local_player = Player(sf::Color::Red, 50, 50, Player::directions::down);
-        remote_player = Player(sf::Color::Green, width - 50, height - 50, Player::directions::up);
+        local_player_ = Player(sf::Color::Red, 50, 50, Player::directions::down);
+        remote_player_ = Player(sf::Color::Green, Width - 50, Height - 50, Player::directions::up);
     }
 
     void send_settings()
     {
         json settings;
 
-        settings["local"]["x"] = local_player.x;
-        settings["local"]["y"] = local_player.y;
-        settings["local"]["c"] = local_player.color.toInteger();
-        settings["local"]["d"] = local_player.dir;
+        settings["local"]["x"] = local_player_.x;
+        settings["local"]["y"] = local_player_.y;
+        settings["local"]["c"] = local_player_.color.toInteger();
+        settings["local"]["d"] = local_player_.dir;
 
-        settings["remote"]["x"] = remote_player.x;
-        settings["remote"]["y"] = remote_player.y;
-        settings["remote"]["c"] = remote_player.color.toInteger();
-        settings["remote"]["d"] = remote_player.dir;
+        settings["remote"]["x"] = remote_player_.x;
+        settings["remote"]["y"] = remote_player_.y;
+        settings["remote"]["c"] = remote_player_.color.toInteger();
+        settings["remote"]["d"] = remote_player_.dir;
 
         auto bson = json::to_bson(settings);
         bson.insert(std::begin(bson), std::size(bson));
 
-        std::cout << boost::asio::write(*socket_ptr, boost::asio::buffer(bson));
+        boost::asio::write(*socket_, boost::asio::buffer(bson));
     }
 
     void receive_settings()
@@ -343,14 +349,14 @@ private:
 
         try
         {
-            uint8_t bytes_to_read = 0;
 
-            if (read(*socket_ptr, buffer, boost::asio::transfer_exactly(1ULL)))
+            if (read(*socket_, buffer, boost::asio::transfer_exactly(1ULL)))
             {
+                uint8_t bytes_to_read = 0;
                 input_stream >> bytes_to_read;
             	if (bytes_to_read)
             	{
-            		boost::asio::read(*socket_ptr, buffer, boost::asio::transfer_exactly(bytes_to_read));
+            		boost::asio::read(*socket_, buffer, boost::asio::transfer_exactly(bytes_to_read));
             	}
             }
         }
@@ -360,7 +366,7 @@ private:
 	        {
 		        
 	        }
-            std::cerr << "Error occured! Error code = " << e.code() << ". Message: " << e.what() << std::endl;
+            std::cerr << "Error occurred! Error code = " << e.code() << ". Message: " << e.what() << std::endl;
 
             system("pause");
 
@@ -369,79 +375,77 @@ private:
 
 		json j(json::from_bson(std::vector <uint8_t>(buffers_begin(buffer.data()), buffers_end(buffer.data()))));
 
-        std::cout << j << std::endl;
+        remote_player_.x = j["local"]["x"];
+        remote_player_.y = j["local"]["y"];
+        remote_player_.color = sf::Color(j["local"]["c"]);
+        remote_player_.dir = j["local"]["d"];
 
-        remote_player.x = j["local"]["x"];
-        remote_player.y = j["local"]["y"];
-        remote_player.color = sf::Color(j["local"]["c"]);
-        remote_player.dir = j["local"]["d"];
-
-        local_player.x = j["remote"]["x"];
-        local_player.y = j["remote"]["y"];
-        local_player.color = sf::Color(j["remote"]["c"]);
-        local_player.dir = j["remote"]["d"];
+        local_player_.x = j["remote"]["x"];
+        local_player_.y = j["remote"]["y"];
+        local_player_.color = sf::Color(j["remote"]["c"]);
+        local_player_.dir = j["remote"]["d"];
     }
 
     void is_ready()
     {
-        window.clear();
-        window.draw(main_sprite);
-        window.draw(center_text);
-        window.display();
+        window_.clear();
+        window_.draw(main_sprite_);
+        window_.draw(center_text_);
+        window_.display();
 
         std::cout << "Wait for Enter\n";
 
-        while (window.waitEvent(event) && !sf::Keyboard::isKeyPressed(sf::Keyboard::Enter));
+        while (window_.waitEvent(event_) && !sf::Keyboard::isKeyPressed(sf::Keyboard::Enter)) {}
 
         send_command(commands::skip);
     }
 
     void wait_for_start()
     {
-        window.clear();
-        window.draw(main_sprite);
-        center_text.setString(ready_text);
-        window.draw(center_text);
-        window.display();
+        window_.clear();
+        window_.draw(main_sprite_);
+        center_text_.setString(ready_text_);
+        window_.draw(center_text_);
+        window_.display();
 
-        while (window.waitEvent(event) && receive_command() != commands::skip);
+        while (window_.waitEvent(event_) && receive_command() != commands::skip) {}
     }
 
     void finish()
     {
-        if (local_is_winner)
-            center_text.setString(local_win_text);
+        if (local_is_winner_)
+            center_text_.setString(local_win_text_);
         else
-            center_text.setString(remote_win_text);
+            center_text_.setString(remote_win_text_);
         
-        window.draw(center_text);
-        window.display();
+        window_.draw(center_text_);
+        window_.display();
 
-        while (window.waitEvent(event) && event.type != sf::Event::KeyPressed);
+        while (window_.waitEvent(event_) && event_.type != sf::Event::KeyPressed) {}
 
-        window.close();
+        window_.close();
 
-        socket_ptr->close();
+        socket_->close();
     }
 
 public:
     void launch_server()
     {
-        boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::address_v4::any(), port);
-
-        boost::asio::io_service io_service;
+        boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::address_v4::any(), port_);
 
         try
         {
+            boost::asio::io_service io_service;
+
             boost::asio::ip::tcp::acceptor acceptor(io_service, endpoint.protocol());
 
             acceptor.bind(endpoint);
 
-            acceptor.listen(max_connections);
+            acceptor.listen(max_connections_);
 
-            socket_ptr = std::make_unique<socket_t>(io_service);
+            socket_ = std::make_unique<socket_t>(io_service);
 
-            acceptor.accept(*socket_ptr);
+            acceptor.accept(*socket_);
 
             init_settings();
 
@@ -451,13 +455,13 @@ public:
         }
         catch (const boost::system::system_error& e)
         {
-            std::cerr << "Error occured! Error code = " << e.code() << ". Message: " << e.what() << std::endl;
+            std::cerr << "Error occurred! Error code = " << e.code() << ". Message: " << e.what() << std::endl;
 
             exit(e.code().value());
         }
         catch (...)
         {
-            std::cerr << "Error occured! Unknown error!" << std::endl;
+            std::cerr << "Error occurred! Unknown error!" << std::endl;
             terminate();
         }
     }
@@ -466,13 +470,13 @@ public:
     {
         try
         {
-	        boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::address::from_string(raw_ip_address), port);
+	        const boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::address::from_string(raw_ip_address), port_);
 
         	boost::asio::io_service io_service;
 
-        	socket_ptr = std::make_unique<socket_t>(io_service, endpoint.protocol());
+        	socket_ = std::make_unique<socket_t>(io_service, endpoint.protocol());
 
-        	socket_ptr->connect(endpoint);
+        	socket_->connect(endpoint);
 
             receive_settings();
 
@@ -480,13 +484,13 @@ public:
         }
         catch (const boost::system::system_error& e)
         {
-            std::cerr << "Error occured! Error code = " << e.code() << ". Message: " << e.what() << std::endl;
+            std::cerr << "Error occurred! Error code = " << e.code() << ". Message: " << e.what() << std::endl;
 
             exit(e.code().value());
         }
         catch (...)
         {
-            std::cerr << "Error occured! Unknown error!" << std::endl;
+            std::cerr << "Error occurred! Unknown error!" << std::endl;
             terminate();
         }
     }
