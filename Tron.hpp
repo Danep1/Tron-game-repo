@@ -10,6 +10,7 @@
 #include <json.hpp>
 #include <SFML/Graphics.hpp>
 
+#include "Player.hpp"
 
 using nlohmann::json;
 
@@ -18,6 +19,7 @@ class Session
 {
 public:
 
+    using player_t = Player<Width, Height>;
     using socket_t = boost::asio::ip::tcp::socket;
     using field_t = std::bitset< Width * Height >;
 
@@ -41,63 +43,6 @@ private:
     const std::string local_win_text_ = "Victory!!!";
     const std::string remote_win_text_ = "Lose...";
 
-    class Player
-    {
-    public:
-        enum class directions
-        {
-            left,
-            right,
-            up,
-            down
-        };
-
-        int x;
-        int y;
-        sf::Color color;
-        directions dir;
-
-        Player() : Player(sf::Color::White, 0, 0, directions::down) {}
-
-        explicit Player(sf::Color color, int x, int y, directions dir) :
-    		x(x), y(y), color(color), dir(dir) {}
-
-        void tick()
-        {
-            switch (dir)
-            {
-            case directions::up:
-                --y;
-                if (y < 0)
-                {
-	                y = Height - 1;
-                }
-                break;
-            case directions::right:
-                ++x;
-                if (x > Width)
-                {
-	                x = 0;
-                }
-                break;
-            case directions::down:
-                ++y;
-                if (y > Height)
-                {
-	                y = 0;
-                }
-                break;
-            case directions::left:
-                --x;
-                if (x < 0)
-                {
-	                x = Width - 1;
-                }
-                break;
-            }
-        }
-    };
-
 private:
     enum class commands
     {
@@ -109,8 +54,8 @@ private:
         exit
     };
 
-    Player local_player_;
-    Player remote_player_;
+    player_t local_player_;
+    player_t remote_player_;
     field_t field_;
     bool local_is_winner_;
     bool exit_flag_;
@@ -130,34 +75,7 @@ public:
     {}
 
 private:
-    void run()
-    {
-        init_render();
-
-        is_ready();
-
-        wait_for_start();
-
-        while (!exit_flag_)
-        {
-            while (window_.pollEvent(event_))
-            {
-                if (event_.type == sf::Event::Closed)
-                {
-                    exit_flag_ = true;
-                    send_command(commands::exit);
-                }
-            }
-
-            track_local_keyboard();
-
-            track_remote_keyboard();
-
-			frame();
-        }
-
-        finish();
-    }
+    void run();
 
     void send_command(commands command) const
     {
@@ -317,8 +235,28 @@ private:
 
     void init_settings()
     {
-        local_player_ = Player(sf::Color::Red, 50, 50, Player::directions::down);
-        remote_player_ = Player(sf::Color::Green, Width - 50, Height - 50, Player::directions::up);
+        local_player_ = player_t(50, 50, sf::Color::Red, player_t::directions::down);
+        remote_player_ = player_t(Width - 50, Height - 50, sf::Color::Green, player_t::directions::up);
+
+        std::random_device device;
+        std::mt19937_64 generator(device());
+        std::uniform_int_distribution<int> uid_x(50, Width - 50);
+        std::uniform_int_distribution<int> uid_y(50, Height - 50);
+
+        local_player_.x = uid_x(generator);
+        local_player_.y = uid_y(generator);
+
+        remote_player_.x = uid_x(generator);
+        remote_player_.y = uid_y(generator);
+
+        while ( std::abs(local_player_.x - remote_player_.x) < 100 )
+        {
+            remote_player_.x = uid_x(generator);
+        }
+        while (std::abs(local_player_.y - remote_player_.y) < 100)
+        {
+            remote_player_.y = uid_y(generator);
+        }
     }
 
     void send_settings()
