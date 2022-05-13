@@ -78,7 +78,34 @@ public:
 				window_(sf::VideoMode(Width, Height, sf::Style::Close | sf::Style::Titlebar), title_)
     {}
 
-    void run();
+    void run()
+    {
+        init_render();
+
+        is_ready();
+
+        wait_for_start();
+
+        while (!exit_flag_)
+        {
+            while (window_.pollEvent(event_))
+            {
+                if (event_.type == sf::Event::Closed)
+                {
+                    exit_flag_ = true;
+                    send_command(commands::exit);
+                }
+            }
+
+            track_local_keyboard();
+
+            track_remote_keyboard();
+
+            frame();
+        }
+
+        finish();
+    }
 
 private:
 
