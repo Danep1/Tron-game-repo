@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
 	constexpr auto width = 600;
 	constexpr auto height = 480;
 
-	Session<width, height>().start_client(parse_raw_ip_address(argc, argv));
+	Session().start_client(parse_raw_ip_address(argc, argv));
 
 	return EXIT_SUCCESS;
 }

@@ -14,12 +14,15 @@
 
 using nlohmann::json;
 
-template < std::size_t Width, std::size_t Height >
+//template < std::size_t , std::size_t Height >
 class Session
 {
 public:
 
-    using player_t = Player<Width, Height>;
+    static constexpr std::size_t Width = 600;
+    static constexpr std::size_t Height = 480;
+
+
     using socket_t = boost::asio::ip::tcp::socket;
     using field_t = std::bitset< Width * Height >;
 
@@ -54,8 +57,8 @@ private:
         exit
     };
 
-    player_t local_player_;
-    player_t remote_player_;
+    Player local_player_;
+    Player remote_player_;
     field_t field_;
     bool local_is_winner_;
     bool exit_flag_;
@@ -70,12 +73,14 @@ private:
     socket_ptr_t socket_;
 
 public:
+
     explicit Session() : field_(false), local_is_winner_(false), exit_flag_(false),
-				window_(sf::VideoMode(Width, Height), title_)
+				window_(sf::VideoMode(Width, Height, sf::Style::Close | sf::Style::Titlebar), title_)
     {}
 
-private:
     void run();
+
+private:
 
     void send_command(commands command) const
     {
@@ -235,8 +240,8 @@ private:
 
     void init_settings()
     {
-        local_player_ = player_t(50, 50, sf::Color::Red, player_t::directions::down);
-        remote_player_ = player_t(Width - 50, Height - 50, sf::Color::Green, player_t::directions::up);
+        local_player_ = Player(Width, Height, 50, 50, sf::Color::Red, Player::directions::down);
+        remote_player_ = Player(Width, Height, Width - 50, Height - 50, sf::Color::Green, Player::directions::up);
 
         std::random_device device;
         std::mt19937_64 generator(device());

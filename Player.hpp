@@ -1,6 +1,5 @@
 #pragma once
 
-template < std::size_t Width, std::size_t Height >
 class Player
 {
 public:
@@ -13,8 +12,10 @@ public:
         down
     };
 
-private:
+public:
     
+    int width;
+    int height;
     int x;
     int y;
     sf::Color color;
@@ -24,8 +25,8 @@ public:
 
     Player() : Player(0, 0, 0, 0, sf::Color::White, directions::down) {}
 
-    explicit Player(int x, int y, sf::Color color, directions dir) :
-		x(x), y(y), color(color), dir(dir) {}
+    explicit Player(int width, int height, int x, int y, sf::Color color, directions dir) :
+		width(width), height(height), x(x), y(y), color(color), dir(dir) {}
 
     void tick()
     {
@@ -35,19 +36,19 @@ public:
             --y;
             if (y < 0)
             {
-                y = Height - 1;
+                y = height - 1;
             }
             break;
         case directions::right:
             ++x;
-            if (x > Width)
+            if (x > width)
             {
                 x = 0;
             }
             break;
         case directions::down:
             ++y;
-            if (y > Height)
+            if (y > height)
             {
                 y = 0;
             }
@@ -56,7 +57,7 @@ public:
             --x;
             if (x < 0)
             {
-                x = Width - 1;
+                x = width - 1;
             }
             break;
         }
