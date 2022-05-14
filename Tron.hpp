@@ -22,7 +22,6 @@ public:
     static constexpr std::size_t Width = 600;
     static constexpr std::size_t Height = 480;
 
-
     using socket_t = boost::asio::ip::tcp::socket;
     using field_t = std::bitset< Width * Height >;
 
@@ -74,7 +73,7 @@ private:
 
 public:
 
-    explicit Session() : field_(false), local_is_winner_(false), exit_flag_(false),
+    Session() : field_(false), local_is_winner_(false), exit_flag_(false),
 				window_(sf::VideoMode(Width, Height, sf::Style::Close | sf::Style::Titlebar), title_)
     {}
 
@@ -270,25 +269,25 @@ private:
         local_player_ = Player(Width, Height, 50, 50, sf::Color::Red, Player::directions::down);
         remote_player_ = Player(Width, Height, Width - 50, Height - 50, sf::Color::Green, Player::directions::up);
 
-        std::random_device device;
-        std::mt19937_64 generator(device());
-        std::uniform_int_distribution<int> uid_x(50, Width - 50);
-        std::uniform_int_distribution<int> uid_y(50, Height - 50);
+        //std::random_device device;
+        //std::mt19937_64 generator(device());
+        //std::uniform_int_distribution<int> uid_x(50, Width - 50);
+        //std::uniform_int_distribution<int> uid_y(50, Height - 50);
 
-        local_player_.x = uid_x(generator);
-        local_player_.y = uid_y(generator);
+        //local_player_.x = uid_x(generator);
+        //local_player_.y = uid_y(generator);
 
-        remote_player_.x = uid_x(generator);
-        remote_player_.y = uid_y(generator);
+        //remote_player_.x = uid_x(generator);
+        //remote_player_.y = uid_y(generator);
 
-        while ( std::abs(local_player_.x - remote_player_.x) < 100 )
-        {
-            remote_player_.x = uid_x(generator);
-        }
-        while (std::abs(local_player_.y - remote_player_.y) < 100)
-        {
-            remote_player_.y = uid_y(generator);
-        }
+        //while ( std::abs(local_player_.x - remote_player_.x) < 100 )
+        //{
+        //    remote_player_.x = uid_x(generator);
+        //}
+        //while (std::abs(local_player_.y - remote_player_.y) < 100)
+        //{
+        //    remote_player_.y = uid_y(generator);
+        //}
     }
 
     void send_settings()
@@ -345,11 +344,15 @@ private:
 
 		json j(json::from_bson(std::vector <uint8_t>(buffers_begin(buffer.data()), buffers_end(buffer.data()))));
 
+        remote_player_.width = Width;
+        remote_player_.height = Height;
         remote_player_.x = j["local"]["x"];
         remote_player_.y = j["local"]["y"];
         remote_player_.color = sf::Color(j["local"]["c"]);
         remote_player_.dir = j["local"]["d"];
 
+        local_player_.width = Width;
+        local_player_.height = Height;
         local_player_.x = j["remote"]["x"];
         local_player_.y = j["remote"]["y"];
         local_player_.color = sf::Color(j["remote"]["c"]);
